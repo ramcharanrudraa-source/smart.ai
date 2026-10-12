@@ -1,5 +1,6 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { useApp } from '../../context/AppContext';
+import { AuthModal } from '../common/AuthModal';
 import {
   Compass,
   ArrowRight,
@@ -19,7 +20,8 @@ import {
 } from 'lucide-react';
 
 export const LandingPage: React.FC = () => {
-  const { setActiveView, bins, alerts, routeComparison, trucks } = useApp();
+  const { setActiveView, bins, alerts, routeComparison, trucks, currentUser } = useApp();
+  const [authModalOpen, setAuthModalOpen] = useState(false);
 
   const urgentBinsCount = bins.filter((b) => b.fillPercentage >= 70).length;
   const criticalCount = alerts.filter((a) => !a.resolved && a.severity === 'critical').length;
@@ -74,13 +76,51 @@ export const LandingPage: React.FC = () => {
             </button>
           </div>
 
-          <button
-            onClick={() => setActiveView('dashboard')}
-            className="flex items-center gap-2 rounded-lg bg-emerald-500 px-4 py-2 text-sm font-semibold text-slate-950 transition-all hover:bg-emerald-400 hover:shadow-lg hover:shadow-emerald-500/20"
-          >
-            <span>Launch Dashboard</span>
-            <ArrowRight className="h-4 w-4" />
-          </button>
+          <div className="flex items-center gap-3">
+            {currentUser ? (
+              <button
+                onClick={() => setAuthModalOpen(true)}
+                className="flex items-center gap-2 rounded-lg border border-slate-800 bg-slate-900/80 px-3.5 py-2 text-xs font-medium text-slate-300 hover:text-white transition-colors"
+              >
+                <span className="h-2 w-2 rounded-full bg-emerald-400" />
+                <span className="max-w-[120px] truncate">{currentUser.email?.split('@')[0]}</span>
+              </button>
+            ) : (
+              <button
+                onClick={() => setAuthModalOpen(true)}
+                className="hidden sm:flex items-center gap-2 rounded-lg border border-slate-700 bg-slate-900/90 px-3.5 py-2 text-xs font-semibold text-slate-200 hover:bg-slate-800 hover:text-white transition-colors shadow-sm"
+                title="Continue with Google"
+              >
+                <svg className="h-3.5 w-3.5" viewBox="0 0 24 24">
+                  <path
+                    fill="#EA4335"
+                    d="M12 5c1.54 0 2.93.56 4.02 1.48l3.02-3.02C17.21 1.76 14.77 1 12 1 7.5 1 3.67 3.58 1.8 7.34l3.66 2.84C6.34 7.36 8.94 5 12 5z"
+                  />
+                  <path
+                    fill="#4285F4"
+                    d="M23.5 12.3c0-.82-.07-1.6-.2-2.3H12v4.6h6.48c-.28 1.48-1.12 2.73-2.38 3.58l3.68 2.86c2.15-1.99 3.72-4.92 3.72-8.74z"
+                  />
+                  <path
+                    fill="#FBBC05"
+                    d="M5.46 14.82c-.24-.72-.38-1.49-.38-2.32 0-.83.14-1.6.38-2.32L1.8 7.34C.66 9.62 0 12.22 0 15s.66 5.38 1.8 7.66l3.66-2.84z"
+                  />
+                  <path
+                    fill="#34A853"
+                    d="M12 23c3.24 0 5.96-1.07 7.96-2.92l-3.68-2.86c-1.08.73-2.46 1.18-4.28 1.18-3.06 0-5.66-2.36-6.54-5.18L1.8 16c1.87 3.76 5.7 6.34 10.2 6.34z"
+                  />
+                </svg>
+                <span>Continue with Google</span>
+              </button>
+            )}
+
+            <button
+              onClick={() => setActiveView('dashboard')}
+              className="flex items-center gap-2 rounded-lg bg-emerald-500 px-4 py-2 text-sm font-semibold text-slate-950 transition-all hover:bg-emerald-400 hover:shadow-lg hover:shadow-emerald-500/20"
+            >
+              <span>Launch Dashboard</span>
+              <ArrowRight className="h-4 w-4" />
+            </button>
+          </div>
         </div>
       </nav>
 
@@ -530,6 +570,8 @@ export const LandingPage: React.FC = () => {
           </button>
         </div>
       </footer>
+
+      <AuthModal isOpen={authModalOpen} onClose={() => setAuthModalOpen(false)} />
     </div>
   );
 };

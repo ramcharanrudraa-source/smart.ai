@@ -1,5 +1,6 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { useApp } from '../../context/AppContext';
+import { AuthModal } from './AuthModal';
 import {
   Play,
   Pause,
@@ -10,6 +11,7 @@ import {
   TrendingDown,
   ExternalLink,
   LayoutDashboard,
+  User,
 } from 'lucide-react';
 
 interface HeaderProps {
@@ -29,7 +31,10 @@ export const Header: React.FC<HeaderProps> = ({ onToggleSidebar }) => {
     trucks,
     routeComparison,
     supabaseStatus,
+    currentUser,
   } = useApp();
+
+  const [authModalOpen, setAuthModalOpen] = useState(false);
 
   const activeAlertsCount = alerts.filter((a) => !a.resolved && a.severity === 'critical').length;
   const activeTrucksCount = trucks.filter((t) => t.status === 'en-route').length;
@@ -197,7 +202,51 @@ export const Header: React.FC<HeaderProps> = ({ onToggleSidebar }) => {
             <span className="hidden sm:inline">Home Portal</span>
           </button>
         )}
+
+        {/* User Account / Google Sign-In Button */}
+        {currentUser ? (
+          <button
+            onClick={() => setAuthModalOpen(true)}
+            className="flex items-center gap-2 rounded-lg border border-slate-800 bg-slate-900/80 px-3 py-1.5 text-xs font-medium text-white hover:border-slate-700 transition-colors"
+            title="Municipal Account Settings"
+          >
+            <div className="flex h-5 w-5 items-center justify-center rounded-full bg-emerald-500/20 text-emerald-400 text-[10px] font-bold">
+              {currentUser.email ? currentUser.email.charAt(0).toUpperCase() : 'U'}
+            </div>
+            <span className="max-w-[110px] truncate hidden md:inline text-[11px] text-slate-300">
+              {currentUser.email?.split('@')[0]}
+            </span>
+          </button>
+        ) : (
+          <button
+            onClick={() => setAuthModalOpen(true)}
+            className="flex items-center gap-2 rounded-lg border border-slate-700 bg-slate-900/90 px-3 py-1.5 text-xs font-semibold text-slate-200 hover:bg-slate-800 hover:text-white transition-colors"
+            title="Continue with Google via Supabase OAuth"
+          >
+            <svg className="h-3.5 w-3.5" viewBox="0 0 24 24">
+              <path
+                fill="#EA4335"
+                d="M12 5c1.54 0 2.93.56 4.02 1.48l3.02-3.02C17.21 1.76 14.77 1 12 1 7.5 1 3.67 3.58 1.8 7.34l3.66 2.84C6.34 7.36 8.94 5 12 5z"
+              />
+              <path
+                fill="#4285F4"
+                d="M23.5 12.3c0-.82-.07-1.6-.2-2.3H12v4.6h6.48c-.28 1.48-1.12 2.73-2.38 3.58l3.68 2.86c2.15-1.99 3.72-4.92 3.72-8.74z"
+              />
+              <path
+                fill="#FBBC05"
+                d="M5.46 14.82c-.24-.72-.38-1.49-.38-2.32 0-.83.14-1.6.38-2.32L1.8 7.34C.66 9.62 0 12.22 0 15s.66 5.38 1.8 7.66l3.66-2.84z"
+              />
+              <path
+                fill="#34A853"
+                d="M12 23c3.24 0 5.96-1.07 7.96-2.92l-3.68-2.86c-1.08.73-2.46 1.18-4.28 1.18-3.06 0-5.66-2.36-6.54-5.18L1.8 16c1.87 3.76 5.7 6.34 10.2 6.34z"
+              />
+            </svg>
+            <span className="hidden sm:inline">Sign In</span>
+          </button>
+        )}
       </div>
+
+      <AuthModal isOpen={authModalOpen} onClose={() => setAuthModalOpen(false)} />
     </header>
   );
 };

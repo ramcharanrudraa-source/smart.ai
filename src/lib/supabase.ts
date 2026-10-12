@@ -1,21 +1,8 @@
-import { createClient } from '@supabase/supabase-js';
+import { supabase, signInWithGoogle, signOut, getCurrentUser } from '../supabaseClient.js';
 
-const supabaseUrl =
-  (import.meta as any).env?.VITE_SUPABASE_URL ||
-  'https://qvojeargwguulydefwuv.supabase.co';
+export { supabase, signInWithGoogle, signOut, getCurrentUser };
 
-const supabaseAnonKey =
-  (import.meta as any).env?.VITE_SUPABASE_ANON_KEY ||
-  'sb_publishable_IPYZReEcFYX8Bf91G01Z_Q_Lf2Lyi7t';
-
-export const isSupabaseConfigured = Boolean(supabaseUrl && supabaseAnonKey);
-
-export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
-  auth: {
-    persistSession: true,
-    autoRefreshToken: true,
-  },
-});
+export const isSupabaseConfigured = true;
 
 export const SUPABASE_SQL_SCHEMA = `-- EcoRoute AI — Supabase Database Schema
 -- Run this in your Supabase SQL Editor (https://supabase.com/dashboard/project/qvojeargwguulydefwuv/sql)

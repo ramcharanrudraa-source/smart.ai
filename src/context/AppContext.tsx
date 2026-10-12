@@ -21,6 +21,7 @@ import {
   optimizeRoutePlan,
 } from '../utils/optimizer';
 import { supabase, isSupabaseConfigured } from '../lib/supabase';
+import { signInWithGoogle, signOut } from '../supabaseClient.js';
 
 export type AppView =
   | 'landing'
@@ -75,6 +76,12 @@ interface AppContextType {
   lastCloudSyncTime: string | null;
   syncBinsToSupabase: () => Promise<{ success: boolean; message: string }>;
   fetchBinsFromSupabase: () => Promise<{ success: boolean; message: string }>;
+
+  // Supabase OAuth State
+  currentUser: any | null;
+  isAuthLoading: boolean;
+  loginWithGoogle: () => Promise<void>;
+  logout: () => Promise<void>;
 
   // Actions
   updateBinFill: (binId: string, fillPct: number) => void;
@@ -172,6 +179,38 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const [supabaseStatus, setSupabaseStatus] = useState<'connected' | 'checking' | 'disconnected' | 'table-missing'>('checking');
   const [isSyncingToCloud, setIsSyncingToCloud] = useState<boolean>(false);
   const [lastCloudSyncTime, setLastCloudSyncTime] = useState<string | null>(null);
+
+  // Supabase OAuth State
+  const [currentUser, setCurrentUser] = useState<any | null>(null);
+  const [isAuthLoading, setIsAuthLoading] = useState<boolean>(true);
+
+  // Listen for Supabase Auth state changes
+  useEffect(() => {
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      setCurrentUser(session?.user ?? null);
+      setIsAuthLoading(false);
+    });
+
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange((_event, session) => {
+      setCurrentUser(session?.user ?? null);
+      setIsAuthLoading(false);
+    });
+
+    return () => {
+      subscription.unsubscribe();
+    };
+  }, []);
+
+  const loginWithGoogle = useCallback(async () => {
+    await signInWithGoogle();
+  }, []);
+
+  const logout = useCallback(async () => {
+    await signOut();
+    setCurrentUser(null);
+  }, []);
 
   // Check Supabase connection on mount
   useEffect(() => {
@@ -852,6 +891,10 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     lastCloudSyncTime,
     syncBinsToSupabase,
     fetchBinsFromSupabase,
+    currentUser,
+    isAuthLoading,
+    loginWithGoogle,
+    logout,
   };
 
   return <AppContext.Provider value={value}>{children}</AppContext.Provider>;
