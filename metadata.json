@@ -1,0 +1,6 @@
+{
+  "name": "EcoRoute AI — Waste Collection Optimizer",
+  "description": "Intelligent smart-city waste collection platform featuring real-time bin monitoring, dynamic priority scoring, capacity-aware route optimization, and municipal sustainability analytics.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
