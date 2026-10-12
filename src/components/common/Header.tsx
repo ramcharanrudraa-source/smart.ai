@@ -28,6 +28,7 @@ export const Header: React.FC<HeaderProps> = ({ onToggleSidebar }) => {
     alerts,
     trucks,
     routeComparison,
+    supabaseStatus,
   } = useApp();
 
   const activeAlertsCount = alerts.filter((a) => !a.resolved && a.severity === 'critical').length;
@@ -146,6 +147,36 @@ export const Header: React.FC<HeaderProps> = ({ onToggleSidebar }) => {
               <span>{routeComparison.percentageSaved}% Saved</span>
             </div>
           )}
+
+          {/* Supabase Cloud Sync Status */}
+          <button
+            onClick={() => setActiveView('settings')}
+            title="Supabase Cloud Database Integration"
+            className={`flex items-center gap-1.5 rounded-lg border px-3 py-1.5 text-xs font-medium transition-colors ${
+              supabaseStatus === 'connected'
+                ? 'border-emerald-500/40 bg-emerald-950/40 text-emerald-300 hover:bg-emerald-900/40'
+                : supabaseStatus === 'table-missing'
+                ? 'border-amber-500/40 bg-amber-950/40 text-amber-300 hover:bg-amber-900/40'
+                : 'border-slate-800 bg-slate-900/60 text-slate-400 hover:text-white'
+            }`}
+          >
+            <span
+              className={`h-2 w-2 rounded-full ${
+                supabaseStatus === 'connected'
+                  ? 'bg-emerald-400 shadow-[0_0_8px_rgba(52,211,153,0.8)]'
+                  : supabaseStatus === 'table-missing'
+                  ? 'bg-amber-400'
+                  : 'bg-slate-500'
+              }`}
+            />
+            <span className="font-mono text-[11px]">
+              {supabaseStatus === 'connected'
+                ? 'Supabase: Live'
+                : supabaseStatus === 'table-missing'
+                ? 'Supabase: Ready'
+                : 'Supabase'}
+            </span>
+          </button>
         </div>
 
         {/* Portal / Landing Switcher */}

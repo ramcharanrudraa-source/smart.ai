@@ -20,6 +20,7 @@ import {
   generateBaselineRoute,
   optimizeRoutePlan,
 } from '../utils/optimizer';
+import { supabase, isSupabaseConfigured } from '../lib/supabase';
 
 export type AppView =
   | 'landing'
@@ -67,6 +68,13 @@ interface AppContextType {
   collectionHistory: CollectionHistoryRecord[];
   isSimulationRunning: boolean;
   simulationTick: number;
+
+  // Supabase Cloud State
+  supabaseStatus: 'connected' | 'checking' | 'disconnected' | 'table-missing';
+  isSyncingToCloud: boolean;
+  lastCloudSyncTime: string | null;
+  syncBinsToSupabase: () => Promise<{ success: boolean; message: string }>;
+  fetchBinsFromSupabase: () => Promise<{ success: boolean; message: string }>;
 
   // Actions
   updateBinFill: (binId: string, fillPct: number) => void;
@@ -159,6 +167,159 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
   const [isSimulationRunning, setIsSimulationRunning] = useState<boolean>(false);
   const [simulationTick, setSimulationTick] = useState<number>(0);
+
+  // Supabase Cloud State
+  const [supabaseStatus, setSupabaseStatus] = useState<'connected' | 'checking' | 'disconnected' | 'table-missing'>('checking');
+  const [isSyncingToCloud, setIsSyncingToCloud] = useState<boolean>(false);
+  const [lastCloudSyncTime, setLastCloudSyncTime] = useState<string | null>(null);
+
+  // Check Supabase connection on mount
+  useEffect(() => {
+    if (!isSupabaseConfigured) {
+      setSupabaseStatus('disconnected');
+      return;
+    }
+
+    const checkSupabase = async () => {
+      try {
+        const { error } = await supabase.from('bins').select('id').limit(1);
+        if (error) {
+          if (
+            error.code === '42P01' ||
+            error.message.includes('relation "public.bins" does not exist') ||
+            error.message.includes('does not exist')
+          ) {
+            setSupabaseStatus('table-missing');
+          } else {
+            // Connection reached Supabase (API key and URL valid)
+            setSupabaseStatus('connected');
+          }
+        } else {
+          setSupabaseStatus('connected');
+        }
+      } catch (err) {
+        setSupabaseStatus('disconnected');
+      }
+    };
+
+    checkSupabase();
+  }, []);
+
+  // Sync Bins to Supabase Cloud
+  const syncBinsToSupabase = useCallback(async () => {
+    if (!isSupabaseConfigured) {
+      return { success: false, message: 'Supabase credentials are not configured.' };
+    }
+    setIsSyncingToCloud(true);
+    try {
+      const payload = bins.map((b) => ({
+        id: b.id,
+        name: b.name,
+        area: b.area,
+        lat: b.lat,
+        lng: b.lng,
+        fill_percentage: b.fillPercentage,
+        capacity_kg: b.capacityKg,
+        waste_type: b.wasteType,
+        last_collection_time: b.lastCollectionTime,
+        is_special_priority: b.isSpecialPriority,
+        priority_score: b.priorityScore,
+        priority_level: b.priorityLevel,
+        assigned_truck_id: b.assignedTruckId || null,
+        updated_at: new Date().toISOString(),
+      }));
+
+      const { error } = await supabase.from('bins').upsert(payload);
+      if (error) {
+        if (
+          error.code === '42P01' ||
+          error.message.includes('relation "public.bins" does not exist') ||
+          error.message.includes('does not exist')
+        ) {
+          setSupabaseStatus('table-missing');
+          return {
+            success: false,
+            message: 'Supabase is connected, but "bins" table is not created yet. Please run the SQL schema in your Supabase SQL Editor.',
+          };
+        }
+        return { success: false, message: error.message };
+      }
+
+      setSupabaseStatus('connected');
+      const timeStr = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+      setLastCloudSyncTime(timeStr);
+      return { success: true, message: `Successfully synchronized ${bins.length} bins to Supabase cloud database!` };
+    } catch (err: any) {
+      return { success: false, message: err?.message || 'Failed to sync with Supabase cloud.' };
+    } finally {
+      setIsSyncingToCloud(false);
+    }
+  }, [bins]);
+
+  // Fetch Bins from Supabase Cloud
+  const fetchBinsFromSupabase = useCallback(async () => {
+    if (!isSupabaseConfigured) {
+      return { success: false, message: 'Supabase credentials are not configured.' };
+    }
+    setIsSyncingToCloud(true);
+    try {
+      const { data, error } = await supabase.from('bins').select('*');
+      if (error) {
+        if (
+          error.code === '42P01' ||
+          error.message.includes('relation "public.bins" does not exist') ||
+          error.message.includes('does not exist')
+        ) {
+          setSupabaseStatus('table-missing');
+          return {
+            success: false,
+            message: 'Table "bins" does not exist yet. Please run the SQL schema in Supabase.',
+          };
+        }
+        return { success: false, message: error.message };
+      }
+
+      if (data && data.length > 0) {
+        const loaded: GarbageBin[] = data.map((row: any) => {
+          const raw = {
+            id: row.id,
+            name: row.name,
+            area: row.area,
+            lat: row.lat,
+            lng: row.lng,
+            fillPercentage: row.fill_percentage,
+            capacityKg: row.capacity_kg,
+            wasteType: row.waste_type,
+            lastCollectionTime: row.last_collection_time,
+            isSpecialPriority: row.is_special_priority,
+          };
+          const p = calculateBinPriority(raw, weights);
+          return {
+            ...raw,
+            priorityScore: p.priorityScore,
+            priorityLevel: p.priorityLevel,
+            scoreBreakdown: p.scoreBreakdown,
+            assignedTruckId: row.assigned_truck_id || null,
+          };
+        });
+
+        setBins(loaded);
+        setSupabaseStatus('connected');
+        const timeStr = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+        setLastCloudSyncTime(timeStr);
+        return { success: true, message: `Loaded ${loaded.length} bins from Supabase cloud database.` };
+      }
+
+      return {
+        success: true,
+        message: 'Connected to Supabase, but "bins" table is currently empty. Run "Sync to Cloud" to populate initial records.',
+      };
+    } catch (err: any) {
+      return { success: false, message: err?.message || 'Failed to fetch from Supabase.' };
+    } finally {
+      setIsSyncingToCloud(false);
+    }
+  }, [weights]);
 
   // Re-evaluate priorities whenever weights change
   const recalculateAllBins = useCallback((binsToRecalc: GarbageBin[], currentWeights: AlgorithmWeights) => {
@@ -686,6 +847,11 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     resetToDefaultData,
     exportBinsToCsv,
     exportCollectionsToCsv,
+    supabaseStatus,
+    isSyncingToCloud,
+    lastCloudSyncTime,
+    syncBinsToSupabase,
+    fetchBinsFromSupabase,
   };
 
   return <AppContext.Provider value={value}>{children}</AppContext.Provider>;

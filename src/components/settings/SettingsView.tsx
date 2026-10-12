@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { useApp } from '../../context/AppContext';
 import { DEFAULT_ALGORITHM_WEIGHTS } from '../../utils/priority';
+import { SUPABASE_SQL_SCHEMA } from '../../lib/supabase';
 import {
   Sliders,
   RotateCcw,
@@ -11,10 +12,28 @@ import {
   Sparkles,
   Shield,
   Save,
+  Database,
+  Cloud,
+  CloudUpload,
+  CloudDownload,
+  Copy,
+  Check,
+  Code2,
+  X,
+  ExternalLink,
 } from 'lucide-react';
 
 export const SettingsView: React.FC = () => {
-  const { weights, updateWeights, resetToDefaultData } = useApp();
+  const {
+    weights,
+    updateWeights,
+    resetToDefaultData,
+    supabaseStatus,
+    isSyncingToCloud,
+    lastCloudSyncTime,
+    syncBinsToSupabase,
+    fetchBinsFromSupabase,
+  } = useApp();
 
   const [fillWeight, setFillWeight] = useState(weights.fillWeight);
   const [waitingWeight, setWaitingWeight] = useState(weights.waitingTimeWeight);
@@ -29,6 +48,27 @@ export const SettingsView: React.FC = () => {
   const [co2Factor, setCo2Factor] = useState(weights.co2KgPerLiter);
 
   const [savedMessage, setSavedMessage] = useState<string | null>(null);
+  const [cloudMessage, setCloudMessage] = useState<{ type: 'success' | 'warn'; text: string } | null>(null);
+  const [showSqlModal, setShowSqlModal] = useState(false);
+  const [copiedSql, setCopiedSql] = useState(false);
+
+  const handleCopySql = () => {
+    navigator.clipboard.writeText(SUPABASE_SQL_SCHEMA);
+    setCopiedSql(true);
+    setTimeout(() => setCopiedSql(false), 2500);
+  };
+
+  const handleCloudSync = async () => {
+    const res = await syncBinsToSupabase();
+    setCloudMessage({ type: res.success ? 'success' : 'warn', text: res.message });
+    setTimeout(() => setCloudMessage(null), 6000);
+  };
+
+  const handleCloudFetch = async () => {
+    const res = await fetchBinsFromSupabase();
+    setCloudMessage({ type: res.success ? 'success' : 'warn', text: res.message });
+    setTimeout(() => setCloudMessage(null), 6000);
+  };
 
   const totalWeight = Math.round((fillWeight + waitingWeight + specialWeight) * 100) / 100;
 
@@ -79,6 +119,182 @@ export const SettingsView: React.FC = () => {
         <div className="flex items-center gap-2 rounded-xl border border-emerald-500/40 bg-emerald-950/20 p-3.5 text-xs text-emerald-200">
           <CheckCircle2 className="h-4 w-4 text-emerald-400 shrink-0" />
           <span>{savedMessage}</span>
+        </div>
+      )}
+
+      {cloudMessage && (
+        <div
+          className={`flex items-center justify-between rounded-xl border p-3.5 text-xs ${
+            cloudMessage.type === 'success'
+              ? 'border-emerald-500/40 bg-emerald-950/20 text-emerald-200'
+              : 'border-amber-500/40 bg-amber-950/20 text-amber-200'
+          }`}
+        >
+          <div className="flex items-center gap-2">
+            {cloudMessage.type === 'success' ? (
+              <CheckCircle2 className="h-4 w-4 text-emerald-400 shrink-0" />
+            ) : (
+              <AlertTriangle className="h-4 w-4 text-amber-400 shrink-0" />
+            )}
+            <span>{cloudMessage.text}</span>
+          </div>
+          <button onClick={() => setCloudMessage(null)} className="text-slate-400 hover:text-white">
+            &times;
+          </button>
+        </div>
+      )}
+
+      {/* Supabase Cloud Integration Card */}
+      <div className="rounded-xl border border-slate-800 bg-slate-900/80 p-5 space-y-4">
+        <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-800 pb-3">
+          <div className="flex items-center gap-3">
+            <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
+              <Database className="h-5 w-5" />
+            </div>
+            <div>
+              <div className="flex items-center gap-2">
+                <h3 className="text-sm font-semibold text-white">Supabase Cloud Database</h3>
+                <span
+                  className={`rounded-full px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider ${
+                    supabaseStatus === 'connected'
+                      ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30'
+                      : supabaseStatus === 'table-missing'
+                      ? 'bg-amber-500/20 text-amber-300 border border-amber-500/30'
+                      : 'bg-slate-800 text-slate-400'
+                  }`}
+                >
+                  {supabaseStatus === 'connected'
+                    ? 'Connected & Live'
+                    : supabaseStatus === 'table-missing'
+                    ? 'Schema Setup Required'
+                    : 'Disconnected'}
+                </span>
+              </div>
+              <p className="text-xs text-slate-400 mt-0.5">
+                Centralized PostgreSQL data storage, realtime sync, and municipal state persistence
+              </p>
+            </div>
+          </div>
+
+          <button
+            onClick={() => setShowSqlModal(true)}
+            className="flex items-center gap-1.5 rounded-lg border border-slate-700 bg-slate-800 px-3 py-1.5 text-xs font-semibold text-slate-200 hover:bg-slate-700 hover:text-white transition-colors"
+          >
+            <Code2 className="h-3.5 w-3.5 text-emerald-400" />
+            <span>SQL Schema Migration</span>
+          </button>
+        </div>
+
+        {/* Project Endpoint & Key */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-xs">
+          <div className="rounded-lg border border-slate-800/80 bg-slate-950/60 p-3 space-y-1">
+            <span className="text-[11px] text-slate-400 font-medium">Supabase Project URL:</span>
+            <p className="font-mono text-emerald-300 text-xs truncate">
+              https://qvojeargwguulydefwuv.supabase.co
+            </p>
+          </div>
+          <div className="rounded-lg border border-slate-800/80 bg-slate-950/60 p-3 space-y-1">
+            <span className="text-[11px] text-slate-400 font-medium">Publishable / Anon Key:</span>
+            <p className="font-mono text-slate-300 text-xs truncate">
+              sb_publishable_IPYZReEcFYX8Bf91G01Z_Q_Lf2Lyi7t
+            </p>
+          </div>
+        </div>
+
+        {/* Sync Controls */}
+        <div className="flex flex-wrap items-center justify-between gap-3 border-t border-slate-800/80 pt-3">
+          <div className="text-xs text-slate-400">
+            {lastCloudSyncTime ? (
+              <span>Last cloud sync: <strong className="text-white font-mono">{lastCloudSyncTime}</strong></span>
+            ) : (
+              <span>Cloud state is ready for synchronization.</span>
+            )}
+          </div>
+
+          <div className="flex items-center gap-2">
+            <button
+              onClick={handleCloudFetch}
+              disabled={isSyncingToCloud}
+              className="flex items-center gap-1.5 rounded-lg border border-slate-800 bg-slate-800/80 px-3 py-1.5 text-xs font-semibold text-slate-200 hover:bg-slate-700 hover:text-white disabled:opacity-50 transition-colors"
+            >
+              <CloudDownload className="h-3.5 w-3.5 text-cyan-400" />
+              <span>Fetch from Cloud</span>
+            </button>
+
+            <button
+              onClick={handleCloudSync}
+              disabled={isSyncingToCloud}
+              className="flex items-center gap-1.5 rounded-lg bg-emerald-500 px-3.5 py-1.5 text-xs font-bold text-slate-950 hover:bg-emerald-400 disabled:opacity-50 transition-colors shadow-sm"
+            >
+              <CloudUpload className="h-3.5 w-3.5" />
+              <span>{isSyncingToCloud ? 'Syncing...' : 'Sync Bins to Cloud'}</span>
+            </button>
+          </div>
+        </div>
+      </div>
+
+      {/* SQL Migration Modal */}
+      {showSqlModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4 backdrop-blur-sm">
+          <div className="w-full max-w-2xl rounded-2xl border border-slate-800 bg-[#0B1220] p-6 shadow-2xl flex flex-col max-h-[85vh]">
+            <div className="flex items-center justify-between border-b border-slate-800 pb-3">
+              <div className="flex items-center gap-2">
+                <Code2 className="h-5 w-5 text-emerald-400" />
+                <h3 className="text-base font-semibold text-white">Supabase PostgreSQL Schema Migration</h3>
+              </div>
+              <button
+                onClick={() => setShowSqlModal(false)}
+                className="rounded-lg p-1 text-slate-400 hover:bg-slate-800 hover:text-white"
+              >
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+
+            <p className="mt-3 text-xs text-slate-300">
+              Copy and execute this script once in your Supabase SQL Editor to provision the tables for bins, trucks, alerts, and collection logs:
+            </p>
+
+            <div className="relative mt-3 flex-1 overflow-hidden rounded-xl border border-slate-800 bg-slate-950 p-4 font-mono text-xs">
+              <button
+                onClick={handleCopySql}
+                className="absolute top-3 right-3 flex items-center gap-1.5 rounded-lg border border-slate-700 bg-slate-800/90 px-3 py-1.5 text-xs text-slate-200 hover:bg-slate-700 hover:text-white transition-colors"
+              >
+                {copiedSql ? (
+                  <>
+                    <Check className="h-3.5 w-3.5 text-emerald-400" />
+                    <span className="text-emerald-400 font-semibold">Copied!</span>
+                  </>
+                ) : (
+                  <>
+                    <Copy className="h-3.5 w-3.5" />
+                    <span>Copy SQL</span>
+                  </>
+                )}
+              </button>
+              <pre className="h-64 overflow-y-auto text-slate-300 text-[11px] leading-relaxed pr-24">
+                {SUPABASE_SQL_SCHEMA}
+              </pre>
+            </div>
+
+            <div className="mt-5 flex items-center justify-between border-t border-slate-800 pt-3">
+              <a
+                href="https://supabase.com/dashboard/project/qvojeargwguulydefwuv/sql"
+                target="_blank"
+                rel="noreferrer"
+                className="flex items-center gap-1.5 text-xs text-emerald-400 hover:underline"
+              >
+                <span>Open Supabase SQL Editor</span>
+                <ExternalLink className="h-3.5 w-3.5" />
+              </a>
+
+              <button
+                onClick={() => setShowSqlModal(false)}
+                className="rounded-lg bg-slate-800 px-4 py-2 text-xs font-semibold text-white hover:bg-slate-700"
+              >
+                Close
+              </button>
+            </div>
+          </div>
         </div>
       )}
 
