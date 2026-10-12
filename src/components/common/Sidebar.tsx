@@ -1,5 +1,6 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { useApp, AppView } from '../../context/AppContext';
+import { CopyrightPolicyModal } from './CopyrightPolicyModal';
 import {
   LayoutDashboard,
   Trash2,
@@ -30,6 +31,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
   onCloseMobile,
 }) => {
   const { activeView, setActiveView, alerts, resetToDefaultData } = useApp();
+  const [copyrightModalOpen, setCopyrightModalOpen] = useState(false);
 
   const unreadAlerts = alerts.filter((a) => !a.resolved).length;
 
@@ -149,6 +151,16 @@ export const Sidebar: React.FC<SidebarProps> = ({
                 <RotateCcw className="h-3 w-3" />
                 <span>Reset Demo State</span>
               </button>
+
+              <div className="flex items-center justify-between pt-1 border-t border-slate-800/80 text-[10px] text-slate-500">
+                <span>&copy; 2026 EcoRoute AI</span>
+                <button
+                  onClick={() => setCopyrightModalOpen(true)}
+                  className="hover:text-emerald-400 hover:underline transition-colors"
+                >
+                  Copyright Policy
+                </button>
+              </div>
             </div>
           ) : (
             <div className="flex justify-center">
@@ -163,6 +175,8 @@ export const Sidebar: React.FC<SidebarProps> = ({
           )}
         </div>
       </aside>
+
+      <CopyrightPolicyModal isOpen={copyrightModalOpen} onClose={() => setCopyrightModalOpen(false)} />
     </>
   );
 };

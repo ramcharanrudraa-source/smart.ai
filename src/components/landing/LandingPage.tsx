@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { useApp } from '../../context/AppContext';
 import { AuthModal } from '../common/AuthModal';
+import { CopyrightPolicyModal } from '../common/CopyrightPolicyModal';
 import {
   Compass,
   ArrowRight,
@@ -22,6 +23,7 @@ import {
 export const LandingPage: React.FC = () => {
   const { setActiveView, bins, alerts, routeComparison, trucks, currentUser } = useApp();
   const [authModalOpen, setAuthModalOpen] = useState(false);
+  const [copyrightModalOpen, setCopyrightModalOpen] = useState(false);
 
   const urgentBinsCount = bins.filter((b) => b.fillPercentage >= 70).length;
   const criticalCount = alerts.filter((a) => !a.resolved && a.severity === 'critical').length;
@@ -558,8 +560,17 @@ export const LandingPage: React.FC = () => {
             <span className="text-xs text-slate-500">· Waste Collection Optimizer</span>
           </div>
 
-          <div className="text-center text-xs text-slate-400">
-            College Hackathon Finalist Prototype · Simulated Hyderabad Municipal Grid · No live GPS claimed
+          <div className="flex flex-wrap items-center justify-center gap-2 text-center text-xs text-slate-400">
+            <span>College Hackathon Finalist Prototype</span>
+            <span aria-hidden="true">&middot;</span>
+            <span>Simulated Hyderabad Grid</span>
+            <span aria-hidden="true">&middot;</span>
+            <button
+              onClick={() => setCopyrightModalOpen(true)}
+              className="text-slate-300 hover:text-emerald-400 hover:underline transition-colors"
+            >
+              Copyright Policy
+            </button>
           </div>
 
           <button
@@ -572,6 +583,7 @@ export const LandingPage: React.FC = () => {
       </footer>
 
       <AuthModal isOpen={authModalOpen} onClose={() => setAuthModalOpen(false)} />
+      <CopyrightPolicyModal isOpen={copyrightModalOpen} onClose={() => setCopyrightModalOpen(false)} />
     </div>
   );
 };
